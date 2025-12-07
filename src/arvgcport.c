@@ -35,6 +35,7 @@
 #include <arvbuffer.h>
 #include <arvgcpropertynode.h>
 #include <arvgc.h>
+#include <arvdebugprivate.h>
 #include <memory.h>
 
 typedef struct {
@@ -64,6 +65,7 @@ static ArvGvLegacyInfos arv_gc_port_legacy_infos[] = {
    { .vendor_selection = "AT_Automation_Technology_GmbH",       .model_selection = "C6_X_GigE"},
    { .vendor_selection = "DO3THINK",                            .model_selection = "MGV518"},
    { .vendor_selection = "EVK",                                 .model_selection = "HELIOS"},
+   { .vendor_selection = "IteK",                                .model_selection = "ITKCamera"},
    { .vendor_selection = "IDS_Imaging_Development_Systems_GmbH",.model_selection = "GV_524xCP_NIR"},
    { .vendor_selection = "Imperx",                              .model_selection = "IpxGEVCamera"},
    { .vendor_selection = "KowaOptronics",                       .model_selection = "SC130ET3"},
@@ -150,15 +152,28 @@ _use_legacy_endianness_mechanism (ArvGcPort *port, guint64 length)
 		vendor_name = arv_gc_register_description_node_get_vendor_name(register_description);
 		model_name = arv_gc_register_description_node_get_model_name(register_description);
 
+		arv_debug_genicam ("[GcPort::check_legacy] Vendor: '%s', Model: '%s'", 
+				   vendor_name ? vendor_name : "(null)", 
+				   model_name ? model_name : "(null)");
+
 		if (arv_gc_register_description_node_compare_schema_version (register_description, 1, 1, 0) < 0) {
+			arv_debug_genicam ("[GcPort::check_legacy] Schema version < 1.1.0 - using legacy mode");
 			port->priv->has_legacy_infos = TRUE;
 		} else {
+			arv_debug_genicam ("[GcPort::check_legacy] Schema version >= 1.1.0 - checking device list");
 			for (i = 0; i < G_N_ELEMENTS (arv_gc_port_legacy_infos); i++) {
+				arv_debug_genicam ("[GcPort::check_legacy] Testing against: '%s' / '%s'",
+						   arv_gc_port_legacy_infos[i].vendor_selection,
+						   arv_gc_port_legacy_infos[i].model_selection);
 				if (g_pattern_match_simple(arv_gc_port_legacy_infos[i].vendor_selection, vendor_name) == TRUE &&
 					g_pattern_match_simple(arv_gc_port_legacy_infos[i].model_selection, model_name) == TRUE) {
+					arv_debug_genicam ("[GcPort::check_legacy] MATCH FOUND - using legacy mode");
 					port->priv->has_legacy_infos = TRUE;
 					break;
 				}
+			}
+			if (!port->priv->has_legacy_infos) {
+				arv_debug_genicam ("[GcPort::check_legacy] No match found - NOT using legacy mode");
 			}
 		}
 
